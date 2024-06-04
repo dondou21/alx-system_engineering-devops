@@ -1,36 +1,50 @@
 #!/usr/bin/python3
 
 """
-query the Reddit API and prints the titles
-of the first 10 hot posts listed for a given subreddit.
+Queries the Reddit API recursively and returns
+a list containing the titles of all hot articles
+for a given subreddit. If no results are found for
+the given subreddit, return None.
 """
 
 from requests import get
 from sys import argv
 
 
-def top_ten(subreddit: str) -> None:
+def recurse(subreddit: str, hot_list=[], after="", count=0) -> list:
     """
-    function that does the heavy lifting for us
+    Function to recurcively query a subreddit
+    And return the hot topics for the subreddit
     Args:
-        subreddit (str) -> The subreddit to query
-    Returns: The top 10 hots for that subreddit
+        subreddit (str): The subreddit to query
+        hot_list (list): Doesn't have to be passed
+        after (str): Doesn't have to be passed
+        count (int): Doesn't have to be passed
     """
+    request_url = "https://www.reddit.com/r/{}/hot/.json".format(subreddit)
     headers = {
-        "User-Agent": "Marvel's Agents of Shield/21",
-        "X-Forwared-For": "Phil J. Coulson"
+        "User-Agent": "I'll use a Real user Agent next I promise"
     }
+    query_strings = {
+        "after": after,
+        "count": count,
+        "limit": 100
+    }
+    response = get(request_url, headers=headers, params=query_strings,
+                   allow_redirects=False)
+    if response.status_code == 404:
+        return None
 
-    request_url = "https://www.reddit.com/r/{}/hot.json".format(subreddit)
+    results = response.json()['data']
+    after = results['after']
+    count += results['dist']
+    for child in results["children"]:
+        hot_list.append(child["data"]["title"])
 
-    try:
-        response = get(request_url, headers=headers,
-                       allow_redirects=False).json()
-        data = response['data']['children']
-        [print(post['data']['title']) for post in data[:10]]
-    except Exception:
-        print("None")
+    if after is not None:
+        return recurse(subreddit, hot_list, after, count)
+    return hot_list
 
 
 if __name__ == "__main__":
-    (top_ten(argv[1]))
+    print(recurse(argv[1]))
